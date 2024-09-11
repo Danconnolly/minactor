@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "minactor",
+    "examples",
+]
+resolver = "2"
