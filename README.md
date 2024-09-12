@@ -1,5 +1,6 @@
 # minactor
 
+![Test Status](https://gist.githubusercontent.com/Danconnolly/a56c9e54e657e2f0daefa22f58a3df63/raw/badge.svg)
 [![dependency status](https://deps.rs/repo/github/Danconnolly/minactor/status.svg)](https://deps.rs/repo/github/Danconnolly/minactor)
 
 minactor is a minimal [actor](https://en.wikipedia.org/wiki/Actor_model) framework for [tokio](https://tokio.rs/).
