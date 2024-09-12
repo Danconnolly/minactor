@@ -1,9 +1,7 @@
-use std::fmt::Debug;
 use async_trait::async_trait;
 use log::warn;
 use tokio::task::JoinHandle;
-use tokio::time::error::Error;
-use crate::{MinActorError, MinActorResult};
+use crate::MinActorResult;
 use crate::actor_ref::ActorRef;
 use crate::executor::ActorExecutor;
 
@@ -19,7 +17,7 @@ pub trait Actor {
     /// The type of messages this actor uses.
     ///
     /// The only restrictions on the messages are that they are Send, so that they can be
-    /// passed between tokio threads.
+    /// passed between threads.
     type MessageType: Send;
     /// The type of the arguments that are used to create the actor.
     ///
@@ -28,9 +26,9 @@ pub trait Actor {
     type CreationArguments;
     /// The error type that actor functions return.
     ///
-    /// Actor functions will return a Result<_, ErrorType>. A default is provided to facilitate
-    /// getting started but most systems should probably implement their own error type.
-    type ErrorType = ();
+    /// Actor functions will return a Result<_, ErrorType>. The ErrorType must be Send so that it
+    /// can be passed between threads.
+    type ErrorType: Send;
 
     /// The new() function must be defined, it is used to create a new instance of the Actor.
     ///
@@ -63,14 +61,14 @@ pub trait Actor {
     /// This function handles call messages, which expect an answering message.
     ///
     /// This will always need to be overridden but a default is included which panics.
-    async fn handle_calls(&mut self, msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
+    async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
         panic!("unhandled call message received.");
     }
 }
 
 
 /// Instantiate an instance of an actor.
-pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<()>)>
+pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<MinActorResult<()>>)>
     where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);

@@ -6,11 +6,11 @@ use crate::executor::ActorSysMsg;
 pub struct ActorRef<T>
 where T: Actor  {
     /// The channel to the actor for sending messages.
-    outbox: Sender<ActorSysMsg<T::MessageType>>,
+    outbox: Sender<ActorSysMsg<T::MessageType, T::ErrorType>>,
 }
 
 impl<T> ActorRef<T> where T: Actor {
-    pub(crate) fn new(outbox: Sender<ActorSysMsg<T::MessageType>>) -> Self {
+    pub(crate) fn new(outbox: Sender<ActorSysMsg<T::MessageType, T::ErrorType>>) -> Self {
         Self {
             outbox
         }
@@ -23,7 +23,7 @@ impl<T> ActorRef<T> where T: Actor {
     }
 
     /// Send a message to the actor and await a response.
-    pub async fn call(&self, msg: T::MessageType) -> MinActorResult<T::MessageType> {
+    pub async fn call(&self, msg: T::MessageType) -> MinActorResult<Result<T::MessageType, T::ErrorType>> {
         let (send, recv) = tokio::sync::oneshot::channel();
         self.outbox.send(ActorSysMsg::Call(msg, send)).await.expect("couldnt send message");
         let reply = recv.await.expect("couldnt receive message");

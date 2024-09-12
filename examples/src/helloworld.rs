@@ -18,12 +18,13 @@ struct HelloWorldActor {}
 impl Actor for HelloWorldActor {
     type MessageType = HelloMsg;
     type CreationArguments = ();
+    type ErrorType = ();
 
     fn new(_args: Self::CreationArguments) -> Self {
         HelloWorldActor {}
     }
 
-    async fn handle_sends(&mut self, msg: HelloMsg) -> MinActorResult<()> {
+    async fn handle_sends(&mut self, msg: HelloMsg) -> Result<(), Self::ErrorType> {
         match msg {
             HelloMsg::Hello => {
                 println!("actor: hello");
@@ -35,7 +36,7 @@ impl Actor for HelloWorldActor {
         }
     }
 
-    async fn handle_calls(&mut self, msg: HelloMsg) -> MinActorResult<HelloMsg> {
+    async fn handle_calls(&mut self, msg: HelloMsg) -> Result<Self::MessageType, Self::ErrorType> {
         match msg {
             HelloMsg::HelloAgain => {
                 println!("actor: hello again");
@@ -55,7 +56,7 @@ async fn main() {
     simple_logger::init_with_level(log::Level::Warn).unwrap();
     let (actor_ref, handle) = create_actor::<HelloWorldActor>(()).await.expect("unable to create actor");
     actor_ref.send(HelloMsg::Hello).await.expect("unable to send message");
-    let reply = actor_ref.call(HelloMsg::HelloAgain).await.unwrap();
+    let reply = actor_ref.call(HelloMsg::HelloAgain).await.unwrap().unwrap();
     if reply == HelloMsg::Goodbye {
         println!("goodbye received from actor")
     }
