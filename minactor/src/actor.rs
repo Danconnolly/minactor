@@ -12,12 +12,12 @@ const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
 ///
 #[async_trait]
-pub trait Actor {
+pub trait Actor: Clone {
     /// The type of messages this actor uses.
     ///
     /// The only restrictions on the messages are that they are Send, so that they can be
     /// passed between threads.
-    type MessageType: Send;
+    type MessageType: Send + Clone;
     /// The type of the arguments that are used to create the actor.
     ///
     /// The actor struct is created by the create_actor() functions using the new() function

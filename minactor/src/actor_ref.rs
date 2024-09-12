@@ -3,6 +3,7 @@ use crate::{Actor, MinActorError, MinActorResult};
 use crate::executor::ActorSysMsg;
 
 /// An ActorRef is a reference to an instance of an actor.
+#[derive(Clone)]
 pub struct ActorRef<T>
 where T: Actor  {
     /// The channel to the actor for sending messages.
@@ -43,51 +44,10 @@ impl<T> ActorRef<T> where T: Actor {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use crate::create_actor;
     use super::*;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use async_trait::async_trait;
-
-    /// an atomic counter that we use for testing
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    /// Message type for DelayingActor
-    #[derive(Debug, PartialEq)]
-    enum DelayingMessage {
-        Ping,
-        DoPong,
-        Pong,
-    }
-
-    /// Simple actor for testing purposes. It delays on the first message received.
-    struct DelayingActor {
-        waited: bool,           // has it already waited?
-    }
-
-    #[async_trait]
-    impl Actor for DelayingActor {
-        type MessageType = DelayingMessage;
-        type CreationArguments = ();
-        type ErrorType = ();
-
-        fn new(_args: Self::CreationArguments) -> Self {
-            Self { waited: false }
-        }
-
-        async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
-            if ! self.waited {
-                tokio::time::sleep(Duration::new(0, 100)).await;
-            }
-            // add one to the counter
-            let _j = COUNTER.fetch_add(1, Ordering::Relaxed);
-            Ok(())
-        }
-
-        async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
-            Ok(DelayingMessage::Pong)
-        }
-    }
+    use std::sync::atomic::Ordering;
+    use crate::test_code::tests::*;
 
     /// Test that shutdown will produce an error for calls.
     #[tokio::test]
@@ -120,5 +80,45 @@ mod tests {
         // before the actor shut down
         let v = COUNTER.load(Ordering::Relaxed);
         assert_eq!(v, 8);
+    }
+
+    /// Test whether we can make arbitary clones of ActorRef
+    #[tokio::test]
+    async fn test_ref_clone() {
+        let (actor, handle) = create_actor::<SimpleCounter>(()).await.unwrap();
+        let act_clone = actor.clone();
+        // confirm that both references have 0
+        if let CounterMessage::Reply(a) = actor.call(CounterMessage::GetCount).await.unwrap().unwrap() {
+            if let CounterMessage::Reply(b) = act_clone.call(CounterMessage::GetCount).await.unwrap().unwrap() {
+                assert_eq!(a, b);
+                assert_eq!(a, 0);
+            } else {
+                assert!(false);
+            }
+        } else {
+            assert!(false);
+        }
+        // increment original
+        let r = actor.send(CounterMessage::Count).await;
+        assert!(r.is_ok());
+        // confirm that both references have 1
+        if let CounterMessage::Reply(a) = actor.call(CounterMessage::GetCount).await.unwrap().unwrap() {
+            if let CounterMessage::Reply(b) = act_clone.call(CounterMessage::GetCount).await.unwrap().unwrap() {
+                assert_eq!(a, b);
+                assert_eq!(a, 1);
+            } else {
+                assert!(false);
+            }
+        } else {
+            assert!(false);
+        }
+        // shutdown the first ref
+        let r = actor.shutdown().await;
+        assert!(r.is_ok());
+        let r = handle.await;
+        assert!(r.is_ok());
+        // try send to clone, should get error
+        let r = act_clone.send(CounterMessage::Count).await;
+        assert!(r.is_err());
     }
 }

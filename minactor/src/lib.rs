@@ -6,9 +6,10 @@
 //! It is designed for single system implementations, not clusters of systems.
 
 mod actor;
-mod result;
 mod actor_ref;
 mod executor;
+mod result;
+mod test_code;
 
 pub use actor::{Actor, create_actor};
 pub use actor_ref::ActorRef;
