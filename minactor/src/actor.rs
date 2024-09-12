@@ -6,8 +6,9 @@ use crate::actor_ref::ActorRef;
 use crate::executor::ActorExecutor;
 
 
-/// The default size of the actor channel buffer.
-const DEFAULT_ACTOR_BUFFER_SIZE: usize = 100;
+/// The default size of the actor channel buffer. The channel buffers incoming messages, once it is
+/// full then sending threads will wait for space in the buffer.
+const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
 ///
 #[async_trait]
