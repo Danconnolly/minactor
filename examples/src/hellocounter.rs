@@ -7,7 +7,7 @@ use minactor::{create_actor, Actor};
 
 
 /// The type of messages sent to the HelloCounterActor.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum HelloCounterMsg {
     Hello,
     QueryCount,
@@ -15,6 +15,7 @@ enum HelloCounterMsg {
 }
 
 /// The actor that counts the messages.
+#[derive(Clone)]
 struct HelloCounterActor {
     /// The count of the number of hello messages received.
     count: u64,
@@ -76,5 +77,5 @@ async fn main() {
         println!("count is {}", count);
     }
     actor_ref.shutdown().await.unwrap();
-    handle.await.expect("error waiting for handle");
+    handle.await.expect("error waiting for handle").expect("minactor returned error");
 }
