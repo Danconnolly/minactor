@@ -12,8 +12,6 @@ const DEFAULT_ACTOR_BUFFER_SIZE: usize = 100;
 ///
 #[async_trait]
 pub trait Actor {
-    /// todo: the functions should return a generic result type, not MinResult
-
     /// The type of messages this actor uses.
     ///
     /// The only restrictions on the messages are that they are Send, so that they can be
@@ -69,7 +67,7 @@ pub trait Actor {
 
 /// Instantiate an instance of an actor.
 pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<MinActorResult<()>>)>
-    where T: Actor + Send + Sync + 'static {
+where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
     let j = tokio::spawn( async move {
