@@ -1,42 +1,14 @@
 use std::fmt::Debug;
+use std::intrinsics::mir::Call;
 use async_trait::async_trait;
 use log::warn;
 use tokio::task::JoinHandle;
 use crate::{MinActorError, MinActorResult};
-
+use crate::actor_ref::ActorRef;
+use crate::executor::ActorExecutor;
 
 /// todo: replace this with configuration
 const ACTOR_BUFFER_SIZE: usize = 100;
-
-
-/// An ActorRef is a reference to an instance of an actor.
-pub struct ActorRef<T>
-    where T: Actor  {
-    /// The channel to the actor for sending messages.
-    outbox: tokio::sync::mpsc::Sender<ActorSysMsg<T::MessageType>>,
-}
-
-impl<T> ActorRef<T> where T: Actor {
-    /// Send a message to the actor without expecting a response.
-    pub async fn send(&self, msg: T::MessageType) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Send(msg)).await.expect("couldnt send message");
-        Ok(())
-    }
-
-    /// Send a message to the actor and await a response.
-    pub async fn call(&self, msg: T::MessageType) -> MinActorResult<T::MessageType> {
-        let (send, recv) = tokio::sync::oneshot::channel();
-        self.outbox.send(ActorSysMsg::Call(msg, send)).await.expect("couldnt send message");
-        let reply = recv.await.expect("couldnt receive message");
-        Ok(reply)
-    }
-
-    /// Shutdown the actor.
-    pub async fn shutdown(&self) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Shutdown).await.expect("couldnt send message");
-        Ok(())
-    }
-}
 
 ///
 #[async_trait]
@@ -87,9 +59,7 @@ pub async fn create_actor<T>(args: T::Arguments) -> MinActorResult<(ActorRef<T>,
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(ACTOR_BUFFER_SIZE);
     let j = tokio::spawn( async move {
-        let mut exec = ActorExecutor {
-            instance, inbox
-        };
+        let mut exec = ActorExecutor::new(instance, inbox);
         exec.run().await
     });
     Ok((ActorRef::<T> {
@@ -97,40 +67,3 @@ pub async fn create_actor<T>(args: T::Arguments) -> MinActorResult<(ActorRef<T>,
     }, j))
 }
 
-/// The ActorExecutor executes the actor, receiving messages and forwarding them to handlers.
-struct ActorExecutor<T> where T: Actor + Send {
-    instance: T,
-    inbox: tokio::sync::mpsc::Receiver<ActorSysMsg<T::MessageType>>,
-}
-
-impl<T> ActorExecutor<T> where T: Actor + Send + Sync {
-    /// Executor run loop.
-    async fn run(&mut self) -> () {
-        use ActorSysMsg::*;
-        while let Some(sys_msg) = self.inbox.recv().await {
-            match sys_msg {
-                Shutdown => {
-                    break;
-                },
-                Send(msg) => {
-                    self.instance.handle_sends(msg).await.expect("message handling failed");
-                },
-                Call(msg, dest) => {
-                    let r = self.instance.handle_calls(msg).await.unwrap();
-                    dest.send(r).expect("unable to send message");
-                },
-            }
-        }
-    }
-}
-
-
-/// The ActorSysMsg is what actually gets sent.
-enum ActorSysMsg<U> where U: Send {
-    /// Normal shutdown
-    Shutdown,
-    /// A send message
-    Send(U),
-    /// A call message
-    Call(U, tokio::sync::oneshot::Sender<U>),
-}

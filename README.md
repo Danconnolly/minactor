@@ -1,8 +1,12 @@
 # minactor
 
-This is going to be a minimal actor framework in Rust, specifically for the tokio runtime.
+minactor is a minimal [actor](https://en.wikipedia.org/wiki/Actor_model) framework for [tokio](https://tokio.rs/).
+The framework was inspired by  [Erlang](https://en.wikipedia.org/wiki/Erlang_(programming_language)) but adapted
+to Rust paradigms. Other inspirations came from [Alice Ryhl](https://ryhl.io/blog/actors-with-tokio/), and 
+[ractor](https://github.com/slawlor/ractor).
 
-I've looked at several other Rust actor implementations and they're mostly huge things with a bunch of features
-that I don't need or want. I need something minimal, something lean. I'm going to start by importing an ad-hoc
-implementation that I wrote in another project.
+Actors created in minactor have a tiny overhead and messages are passed using tokio channels. Each instance of an actor
+has a single thread of control (a tokio async task). Creating actors is simple. 
 
+It is designed for single system implementations, not clusters of systems. If you need clusters, you're probably better
+served by other frameworks such as [ractor](https://github.com/slawlor/ractor).
