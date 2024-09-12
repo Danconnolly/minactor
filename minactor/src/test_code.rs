@@ -20,7 +20,6 @@ pub mod tests {
     }
 
     /// Simple actor for testing purposes. It delays on the first message received.
-    #[derive(Clone)]
     pub struct DelayingActor {
         waited: bool,           // has it already waited?
     }
@@ -58,7 +57,6 @@ pub mod tests {
     }
 
     /// Simple actor for testing purposes. It counts.
-    #[derive(Clone)]
     pub struct SimpleCounter {
         count: u64,
     }

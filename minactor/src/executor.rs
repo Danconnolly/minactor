@@ -1,6 +1,6 @@
 use log::warn;
 use tokio::sync::mpsc::Receiver;
-use crate::{Actor, MinActorResult};
+use crate::Actor;
 
 /// The ActorExecutor executes the actor, receiving messages and forwarding them to handlers.
 pub(crate) struct ActorExecutor<T> where T: Actor + Send {

@@ -1,30 +1,31 @@
 use tokio::sync::mpsc::Sender;
-use crate::{Actor, MinActorError, MinActorResult};
+use crate::{MinActorError, MinActorResult};
 use crate::executor::ActorSysMsg;
 
 /// An ActorRef is a reference to an instance of an actor.
+///
+// T is message type and U is error type
 #[derive(Clone)]
-pub struct ActorRef<T>
-where T: Actor  {
+pub struct ActorRef<T, U> where T: Send + Clone, U: Send {
     /// The channel to the actor for sending messages.
-    outbox: Sender<ActorSysMsg<T::MessageType, T::ErrorType>>,
+    outbox: Sender<ActorSysMsg<T, U>>,
 }
 
-impl<T> ActorRef<T> where T: Actor {
-    pub(crate) fn new(outbox: Sender<ActorSysMsg<T::MessageType, T::ErrorType>>) -> Self {
+impl<T, U> ActorRef<T, U> where T: Send + Clone, U: Send {
+    pub(crate) fn new(outbox: Sender<ActorSysMsg<T, U>>) -> Self {
         Self {
             outbox
         }
     }
 
     /// Send a message to the actor without expecting a response.
-    pub async fn send(&self, msg: T::MessageType) -> MinActorResult<()> {
+    pub async fn send(&self, msg: T) -> MinActorResult<()> {
         self.outbox.send(ActorSysMsg::Send(msg)).await.map_err(|_| MinActorError::UnableToSend)?;
         Ok(())
     }
 
     /// Send a message to the actor and await a response.
-    pub async fn call(&self, msg: T::MessageType) -> MinActorResult<Result<T::MessageType, T::ErrorType>> {
+    pub async fn call(&self, msg: T) -> MinActorResult<Result<T, U>> {
         let (send, recv) = tokio::sync::oneshot::channel();
         self.outbox.send(ActorSysMsg::Call(msg, send)).await.map_err(|_| MinActorError::UnableToSend)?;
         let reply = recv.await.map_err(|_| MinActorError::UnableToReceive)?;

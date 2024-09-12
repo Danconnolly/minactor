@@ -12,7 +12,7 @@ const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
 ///
 #[async_trait]
-pub trait Actor: Clone {
+pub trait Actor {
     /// The type of messages this actor uses.
     ///
     /// The only restrictions on the messages are that they are Send, so that they can be
@@ -72,7 +72,7 @@ pub trait Actor: Clone {
 
 
 /// Instantiate an instance of an actor using default configuration.
-pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<Result<(), T::ErrorType>>)>
+pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<Result<(), T::ErrorType>>)>
 where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
@@ -80,6 +80,6 @@ where T: Actor + Send + Sync + 'static {
         let mut exec = ActorExecutor::new(instance, inbox);
         exec.run().await
     });
-    Ok((ActorRef::<T>::new(outbox), j))
+    Ok((ActorRef::<T::MessageType, T::ErrorType>::new(outbox), j))
 }
 
