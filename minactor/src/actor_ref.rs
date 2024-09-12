@@ -2,8 +2,12 @@ use tokio::sync::mpsc::Sender;
 use crate::{MinActorError, MinActorResult};
 use crate::executor::ActorSysMsg;
 
-/// An ActorRef is a reference to an instance of an actor.
+/// An ActorRef is a reference to an instance of an actor. It is the main contact point with the
+/// running actor.
 ///
+/// An ActorRef is returned from [create_actor()] and is used to send messages to the actor.
+///
+/// ActorRefs can be cloned as many times as required and can be sent across threads.
 // T is message type and U is error type
 #[derive(Clone)]
 pub struct ActorRef<T, U> where T: Send + Clone, U: Send {
@@ -36,7 +40,7 @@ impl<T, U> ActorRef<T, U> where T: Send + Clone, U: Send {
     ///
     /// This is a controlled, orderly shutdown. Previous sends and calls will be processed before the
     /// actor is shut down. Subsequent sends and calls will be ignored, which will have no effect
-    /// on sends but will produce an error for calls.
+    /// for sends but will produce an error for outstanding calls.
     pub async fn shutdown(&self) -> MinActorResult<()> {
         self.outbox.send(ActorSysMsg::Shutdown).await.map_err(|_| MinActorError::UnableToSend)?;
         Ok(())
