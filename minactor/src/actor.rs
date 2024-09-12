@@ -15,14 +15,16 @@ const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 pub trait Actor {
     /// The type of messages this actor uses.
     ///
-    /// The only restrictions on the messages are that they are Send, so that they can be
-    /// passed between threads.
+    /// The only restrictions on the messages are that they are Send and Clone, so that they can be
+    /// passed between threads and ActorRef can be cloned.
     type MessageType: Send + Clone;
+
     /// The type of the arguments that are used to create the actor.
     ///
     /// The actor struct is created by the create_actor() functions using the new() function
     /// that is implemented by the actor.
     type CreationArguments;
+
     /// The error type that actor functions return.
     ///
     /// Actor functions will return a Result<_, ErrorType>. The ErrorType must be Send so that it
