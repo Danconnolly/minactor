@@ -52,7 +52,8 @@ pub trait Actor {
     ///
     /// This will always need to be overridden but a default is included which logs
     /// a warning and returns ().
-    async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
+    #[allow(unused)]        // msg is not used in the default
+    async fn handle_sends(&mut self, msg: Self::MessageType) -> Result<(), Self::ErrorType> {
         warn!("unhandled sent message received.");
         Ok(())
     }
@@ -60,13 +61,14 @@ pub trait Actor {
     /// This function handles call messages, which expect an answering message.
     ///
     /// This will always need to be overridden but a default is included which panics.
-    async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
+    #[allow(unused)]        // msg is not used in the default
+    async fn handle_calls(&mut self, msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
         panic!("unhandled call message received.");
     }
 }
 
 
-/// Instantiate an instance of an actor.
+/// Instantiate an instance of an actor using default configuration.
 pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<MinActorResult<()>>)>
 where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);

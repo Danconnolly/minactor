@@ -1,5 +1,5 @@
 use tokio::sync::mpsc::Sender;
-use crate::{Actor, MinActorResult};
+use crate::{Actor, MinActorError, MinActorResult};
 use crate::executor::ActorSysMsg;
 
 /// An ActorRef is a reference to an instance of an actor.
@@ -18,15 +18,15 @@ impl<T> ActorRef<T> where T: Actor {
 
     /// Send a message to the actor without expecting a response.
     pub async fn send(&self, msg: T::MessageType) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Send(msg)).await.expect("couldnt send message");
+        self.outbox.send(ActorSysMsg::Send(msg)).await.map_err(|_| MinActorError::UnableToSend)?;
         Ok(())
     }
 
     /// Send a message to the actor and await a response.
     pub async fn call(&self, msg: T::MessageType) -> MinActorResult<Result<T::MessageType, T::ErrorType>> {
         let (send, recv) = tokio::sync::oneshot::channel();
-        self.outbox.send(ActorSysMsg::Call(msg, send)).await.expect("couldnt send message");
-        let reply = recv.await.expect("couldnt receive message");
+        self.outbox.send(ActorSysMsg::Call(msg, send)).await.map_err(|_| MinActorError::UnableToSend)?;
+        let reply = recv.await.map_err(|_| MinActorError::UnableToReceive)?;
         Ok(reply)
     }
 
@@ -36,14 +36,13 @@ impl<T> ActorRef<T> where T: Actor {
     /// actor is shut down. Subsequent sends and calls will be ignored, which will have no effect
     /// on sends but will produce an error for calls.
     pub async fn shutdown(&self) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Shutdown).await.expect("couldnt send message");
+        self.outbox.send(ActorSysMsg::Shutdown).await.map_err(|_| MinActorError::UnableToSend)?;
         Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use std::time::Duration;
     use crate::create_actor;
     use super::*;
@@ -54,8 +53,11 @@ mod tests {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
 
     /// Message type for DelayingActor
+    #[derive(Debug, PartialEq)]
     enum DelayingMessage {
         Ping,
+        DoPong,
+        Pong,
     }
 
     /// Simple actor for testing purposes. It delays on the first message received.
@@ -69,7 +71,7 @@ mod tests {
         type CreationArguments = ();
         type ErrorType = ();
 
-        fn new(args: Self::CreationArguments) -> Self {
+        fn new(_args: Self::CreationArguments) -> Self {
             Self { waited: false }
         }
 
@@ -81,6 +83,10 @@ mod tests {
             let _j = COUNTER.fetch_add(1, Ordering::Relaxed);
             Ok(())
         }
+
+        async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
+            Ok(DelayingMessage::Pong)
+        }
     }
 
     /// Test that shutdown will produce an error for calls.
@@ -88,7 +94,7 @@ mod tests {
     async fn test_shutdown_process() {
         let (actor, handle) = create_actor::<DelayingActor>(()).await.unwrap();
         // send 8 messages, just less than the default buffer size, these will get sent quickly
-        for i in 0..8 {
+        for _i in 0..8 {
             let r = actor.send(DelayingMessage::Ping).await;
             assert!(r.is_ok());
         }
@@ -98,7 +104,16 @@ mod tests {
         // the counter value should still be zero, the actor is still in its sleep for the first message
         let v = COUNTER.load(Ordering::Relaxed);
         assert_eq!(v, 0);
-        // wait for the actor to finish processing all messages
+        // send a call, this wont finish until after all the other messages are processed, including
+        // the shutdown message. Since the system is then shutdown, this will result in an error.
+        let r = actor.call(DelayingMessage::DoPong).await;
+        assert!(r.is_err());
+        assert_eq!(r, Err(MinActorError::UnableToReceive));
+        // although the actor ref struct still exists, it should produce an error when we try to send
+        let r = actor.send(DelayingMessage::Ping).await;
+        assert!(r.is_err());
+        assert_eq!(r, Err(MinActorError::UnableToSend));
+        // wait for the actor to finish processing all messages, which should be immediate
         let r = handle.await.unwrap();
         assert!(r.is_ok());
         // the counter value should now be 8, showing that the messages were processed
