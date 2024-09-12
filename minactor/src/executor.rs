@@ -17,8 +17,12 @@ impl<T> ActorExecutor<T> where T: Actor + Send + Sync {
     }
 
     /// Executor run loop.
-    pub(crate) async fn run(&mut self) -> MinActorResult<()> {
+    pub(crate) async fn run(&mut self) -> Result<(), T::ErrorType> {
         use ActorSysMsg::*;
+        match self.instance.on_initialization().await {
+            Err(e) => { return Err(e); },
+            Ok(()) => {}
+        }
         while let Some(sys_msg) = self.inbox.recv().await {
             match sys_msg {
                 Shutdown => {

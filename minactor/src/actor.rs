@@ -38,12 +38,15 @@ pub trait Actor: Clone {
     /// values for the actor struct.
     fn new(args: Self::CreationArguments) -> Self;
 
-    /// The on_initialization() function is called immediately after the actor has started.
+    /// The on_initialization() function is called after the actor has started and before
+    /// message processing.
     ///
     /// This function can be overridden to provide complex initialization capabilities, such as
     /// opening a file or opening a network connection.
     ///
     /// If not overridden, this function does nothing.
+    ///
+    /// If the function returns an error, the actor terminates.
     async fn on_initialization(&self) -> Result<(), Self::ErrorType> {
         Ok(())
     }
@@ -69,7 +72,7 @@ pub trait Actor: Clone {
 
 
 /// Instantiate an instance of an actor using default configuration.
-pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<MinActorResult<()>>)>
+pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<Result<(), T::ErrorType>>)>
 where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
