@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::intrinsics::mir::Call;
 use async_trait::async_trait;
 use log::warn;
 use tokio::task::JoinHandle;
@@ -16,16 +15,24 @@ pub trait Actor {
     /// todo: the functions should return a generic result type, not MinResult
 
     /// The type of messages this actor uses.
-    type MessageType: Send + Debug;
-    /// The type of the arguments that are used to initialize the actor.
-    type Arguments;
+    ///
+    /// The only restrictions on the messages are that they are Send, so that they can be
+    /// passed between tokio threads.
+    type MessageType: Send;
+    /// The type of the arguments that are used to create the actor.
+    ///
+    /// The actor struct is created by the create_actor() functions using the new() function
+    /// that is implemented by the actor.
+    type CreationArguments;
 
     /// The new() function must be defined, it is used to create a new instance of the Actor.
     ///
-    /// This is a non-async function and must always return an instance. This is not the place to
-    /// do any complex initialization, it is just intended to set initial values for the struct that
-    /// implements the actor.
-    fn new(args: Self::Arguments) -> Self;
+    /// This is a non-async function and must always return an instance. It is executed in the
+    /// context that calls the create_actor() function.
+    ///
+    /// This is not the place to do any complex initialization, it is just intended to set initial
+    /// values for the actor struct.
+    fn new(args: Self::CreationArguments) -> Self;
 
     /// The on_initialization() function is called immediately after the actor has started.
     ///
@@ -54,7 +61,7 @@ pub trait Actor {
 }
 
 /// Instantiate an instance of an actor.
-pub async fn create_actor<T>(args: T::Arguments) -> MinActorResult<(ActorRef<T>, JoinHandle<()>)>
+pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T>, JoinHandle<()>)>
     where T: Actor + Send + Sync + 'static {
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(ACTOR_BUFFER_SIZE);

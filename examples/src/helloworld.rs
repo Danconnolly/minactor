@@ -17,9 +17,9 @@ struct HelloWorldActor {}
 #[async_trait]
 impl Actor for HelloWorldActor {
     type MessageType = HelloMsg;
-    type Arguments = ();
+    type CreationArguments = ();
 
-    fn new(_args: Self::Arguments) -> Self {
+    fn new(_args: Self::CreationArguments) -> Self {
         HelloWorldActor {}
     }
 
