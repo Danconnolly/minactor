@@ -1,5 +1,7 @@
 # minactor
 
+[![dependency status](https://deps.rs/repo/github/Danconnolly/minactor/status.svg)](https://deps.rs/repo/github/Danconnolly/minactor)
+
 minactor is a minimal [actor](https://en.wikipedia.org/wiki/Actor_model) framework for [tokio](https://tokio.rs/).
 The framework was inspired by  [Erlang](https://en.wikipedia.org/wiki/Erlang_(programming_language)) but adapted
 to Rust paradigms. Other inspirations came from [Alice Ryhl](https://ryhl.io/blog/actors-with-tokio/), and 
