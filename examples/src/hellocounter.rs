@@ -68,7 +68,7 @@ impl Actor for HelloCounterActor {
 async fn main() {
     simple_logger::init_with_level(log::Level::Warn).unwrap();
     let (actor_ref, handle) = create_actor::<HelloCounterActor>((5, "all fine, nothing to see here".to_string())).await.expect("unable to create actor");
-    for i in 0..5082 {
+    for _i in 0..5082 {
         actor_ref.send(HelloCounterMsg::Hello).await.expect("unable to send message");
     }
     let reply = actor_ref.call(HelloCounterMsg::QueryCount).await.unwrap().unwrap();
