@@ -4,7 +4,6 @@
 pub mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
-    use async_trait::async_trait;
     use crate::Actor;
 
 
@@ -24,7 +23,6 @@ pub mod tests {
         waited: bool,           // has it already waited?
     }
 
-    #[async_trait]
     impl Actor for DelayingActor {
         type MessageType = DelayingMessage;
         type CreationArguments = ();
@@ -61,7 +59,6 @@ pub mod tests {
         count: u64,
     }
 
-    #[async_trait]
     impl Actor for SimpleCounter {
         type MessageType = CounterMessage;
         type CreationArguments = ();

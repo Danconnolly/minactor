@@ -1,7 +1,6 @@
 //! This is the classic helloworld implementation for the minactor framework.
 //! It creates a very simple actor (HelloWorldActor) which prints hello world when it is
 //! sent a Hello message.
-use async_trait::async_trait;
 use minactor::{create_actor, Actor};
 
 
@@ -15,7 +14,6 @@ enum HelloMsg {
 #[derive(Clone)]
 struct HelloWorldActor {}
 
-#[async_trait]
 impl Actor for HelloWorldActor {
     /// We want to send a simple Hello to the actor.
     type MessageType = HelloMsg;

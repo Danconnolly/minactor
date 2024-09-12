@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+use core::future::Future;
 use log::warn;
 use tokio::task::JoinHandle;
 use crate::MinActorResult;
@@ -11,7 +11,6 @@ use crate::executor::ActorExecutor;
 const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
 ///
-#[async_trait]
 pub trait Actor {
     /// The type of messages this actor uses.
     ///
@@ -49,33 +48,35 @@ pub trait Actor {
     /// If not overridden, this function does nothing.
     ///
     /// If the function returns an error, the actor terminates.
-    async fn on_initialization(&self) -> Result<(), Self::ErrorType> {
+    fn on_initialization(&self) -> impl Future<Output = Result<(), Self::ErrorType>> + Send { async {
         Ok(())
-    }
+    }}
 
     /// This function handles messages that are sent, without expecting an answer.
     ///
     /// This will always need to be overridden but a default is included which logs
     /// a warning and returns ().
     #[allow(unused)]        // msg is not used in the default
-    async fn handle_sends(&mut self, msg: Self::MessageType) -> Result<(), Self::ErrorType> {
+    fn handle_sends(&mut self, msg: Self::MessageType) -> impl Future<Output = Result<(), Self::ErrorType>> + Send  { async {
         warn!("unhandled sent message received.");
         Ok(())
-    }
+    }}
 
     /// This function handles call messages, which expect an answering message.
     ///
     /// This will always need to be overridden but a default is included which panics.
     #[allow(unused)]        // msg is not used in the default
-    async fn handle_calls(&mut self, msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
+    fn handle_calls(&mut self, msg: Self::MessageType) -> impl Future<Output = Result<Self::MessageType, Self::ErrorType>> + Send { async {
         panic!("unhandled call message received.");
-    }
+    }}
 }
 
 
 /// Instantiate an instance of an actor using default configuration.
 pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<Result<(), T::ErrorType>>)>
-where T: Actor + Send + Sync + 'static {
+where
+    T: Actor + Send + Sync + 'static
+{
     let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
     let j = tokio::spawn( async move {

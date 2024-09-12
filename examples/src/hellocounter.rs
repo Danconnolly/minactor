@@ -2,7 +2,6 @@
 //!
 //! The actor counts the number of times it is sent a Hello message and returns the count when
 //! queried.
-use async_trait::async_trait;
 use minactor::{create_actor, Actor};
 
 
@@ -21,7 +20,6 @@ struct HelloCounterActor {
     count: u64,
 }
 
-#[async_trait]
 impl Actor for HelloCounterActor {
     type MessageType = HelloCounterMsg;
     /// Counters should probably always start at zero, but we want to give the capability to

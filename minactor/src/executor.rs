@@ -8,7 +8,10 @@ pub(crate) struct ActorExecutor<T> where T: Actor + Send {
     inbox: Receiver<ActorSysMsg<T::MessageType, T::ErrorType>>,
 }
 
-impl<T> ActorExecutor<T> where T: Actor + Send + Sync {
+impl<T> ActorExecutor<T>
+where
+    T: Actor + Send + Sync
+{
     /// Create a new instance of the executor.
     pub(crate) fn new(instance: T, inbox: Receiver<ActorSysMsg<T::MessageType, T::ErrorType>>) -> Self {
         ActorExecutor {
