@@ -13,3 +13,8 @@ has a single thread of control (a tokio async task). Creating actors is simple.
 
 It is designed for single system implementations, not clusters of systems. If you need clusters, you're probably better
 served by other frameworks such as [ractor](https://github.com/slawlor/ractor).
+
+## Roadmap
+
+* Supervision trees
+* Integrating general futures

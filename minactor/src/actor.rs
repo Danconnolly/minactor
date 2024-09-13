@@ -64,7 +64,7 @@ pub trait Actor {
 }
 
 
-/// Instantiate an instance of an actor using default configuration.
+/// Create an instance of an actor using default configuration.
 pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<std::result::Result<(), T::ErrorType>>)>
 where
     T: Actor + Send + Sync + 'static
