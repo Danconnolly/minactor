@@ -10,7 +10,7 @@ use crate::executor::ActorExecutor;
 /// full then sending threads will wait for space in the buffer.
 const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
-///
+/// The Actor trait. This is the trait that structs will need to implement to function as an actor.
 pub trait Actor {
     /// The type of messages this actor uses.
     ///
