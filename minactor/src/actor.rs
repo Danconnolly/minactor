@@ -1,4 +1,5 @@
 use core::future::Future;
+use std::process::Output;
 use log::warn;
 use tokio::task::JoinHandle;
 use crate::result::Result;
@@ -52,6 +53,13 @@ pub trait Actor {
     #[allow(unused)]        // msg is not used in the default
     fn handle_calls(&mut self, msg: Self::MessageType) -> impl Future<Output = std::result::Result<Self::MessageType, Self::ErrorType>> + Send { async {
         panic!("unhandled call message received.");
+    }}
+
+    /// The function is called just priori to shutdown.
+    ///
+    /// The default implementation does nothing.
+    fn on_shutdown(&mut self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
+        Ok(())
     }}
 }
 
