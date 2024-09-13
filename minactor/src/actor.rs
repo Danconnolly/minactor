@@ -1,7 +1,7 @@
 use core::future::Future;
 use log::warn;
 use tokio::task::JoinHandle;
-use crate::MinActorResult;
+use crate::Result;
 use crate::actor_ref::ActorRef;
 use crate::executor::ActorExecutor;
 
@@ -33,7 +33,7 @@ pub trait Actor {
     /// If not overridden, this function does nothing.
     ///
     /// If the function returns an error, the actor terminates.
-    fn on_initialization(&self) -> impl Future<Output = Result<(), Self::ErrorType>> + Send { async {
+    fn on_initialization(&self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
         Ok(())
     }}
 
@@ -42,7 +42,7 @@ pub trait Actor {
     /// This will always need to be overridden but a default is included which logs
     /// a warning and returns ().
     #[allow(unused)]        // msg is not used in the default
-    fn handle_sends(&mut self, msg: Self::MessageType) -> impl Future<Output = Result<(), Self::ErrorType>> + Send  { async {
+    fn handle_sends(&mut self, msg: Self::MessageType) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send  { async {
         warn!("unhandled sent message received.");
         Ok(())
     }}
@@ -51,14 +51,14 @@ pub trait Actor {
     ///
     /// This will always need to be overridden but a default is included which panics.
     #[allow(unused)]        // msg is not used in the default
-    fn handle_calls(&mut self, msg: Self::MessageType) -> impl Future<Output = Result<Self::MessageType, Self::ErrorType>> + Send { async {
+    fn handle_calls(&mut self, msg: Self::MessageType) -> impl Future<Output = std::result::Result<Self::MessageType, Self::ErrorType>> + Send { async {
         panic!("unhandled call message received.");
     }}
 }
 
 
 /// Instantiate an instance of an actor using default configuration.
-pub async fn create_actor<T>(instance: T) -> MinActorResult<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<Result<(), T::ErrorType>>)>
+pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<std::result::Result<(), T::ErrorType>>)>
 where
     T: Actor + Send + Sync + 'static
 {

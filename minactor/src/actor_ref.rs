@@ -1,5 +1,5 @@
 use tokio::sync::mpsc::Sender;
-use crate::{MinActorError, MinActorResult};
+use crate::{Error, Result};
 use crate::executor::ActorSysMsg;
 
 /// An ActorRef is a reference to an instance of an actor. It is the main contact point with the
@@ -23,16 +23,16 @@ impl<T, U> ActorRef<T, U> where T: Send + Clone, U: Send {
     }
 
     /// Send a message to the actor without expecting a response.
-    pub async fn send(&self, msg: T) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Send(msg)).await.map_err(|_| MinActorError::UnableToSend)?;
+    pub async fn send(&self, msg: T) -> Result<()> {
+        self.outbox.send(ActorSysMsg::Send(msg)).await.map_err(|_| Error::UnableToSend)?;
         Ok(())
     }
 
     /// Send a message to the actor and await a response.
-    pub async fn call(&self, msg: T) -> MinActorResult<Result<T, U>> {
+    pub async fn call(&self, msg: T) -> Result<std::result::Result<T, U>> {
         let (send, recv) = tokio::sync::oneshot::channel();
-        self.outbox.send(ActorSysMsg::Call(msg, send)).await.map_err(|_| MinActorError::UnableToSend)?;
-        let reply = recv.await.map_err(|_| MinActorError::UnableToReceive)?;
+        self.outbox.send(ActorSysMsg::Call(msg, send)).await.map_err(|_| Error::UnableToSend)?;
+        let reply = recv.await.map_err(|_| Error::UnableToReceive)?;
         Ok(reply)
     }
 
@@ -41,8 +41,8 @@ impl<T, U> ActorRef<T, U> where T: Send + Clone, U: Send {
     /// This is a controlled, orderly shutdown. Previous sends and calls will be processed before the
     /// actor is shut down. Subsequent sends and calls will be ignored, which will have no effect
     /// for sends but will produce an error for outstanding calls.
-    pub async fn shutdown(&self) -> MinActorResult<()> {
-        self.outbox.send(ActorSysMsg::Shutdown).await.map_err(|_| MinActorError::UnableToSend)?;
+    pub async fn shutdown(&self) -> Result<()> {
+        self.outbox.send(ActorSysMsg::Shutdown).await.map_err(|_| Error::UnableToSend)?;
         Ok(())
     }
 }
@@ -74,11 +74,11 @@ mod tests {
         // the shutdown message. Since the system is then shutdown, this will result in an error.
         let r = actor.call(DelayingMessage::DoPong).await;
         assert!(r.is_err());
-        assert_eq!(r, Err(MinActorError::UnableToReceive));
+        assert_eq!(r, Err(Error::UnableToReceive));
         // although the actor ref struct still exists, it should produce an error when we try to send
         let r = actor.send(DelayingMessage::Ping).await;
         assert!(r.is_err());
-        assert_eq!(r, Err(MinActorError::UnableToSend));
+        assert_eq!(r, Err(Error::UnableToSend));
         // wait for the actor to finish processing all messages, which should be immediate
         let r = handle.await.unwrap();
         assert!(r.is_ok());
