@@ -13,4 +13,4 @@ mod test_code;
 
 pub use actor::{Actor, create_actor};
 pub use actor_ref::ActorRef;
-pub use result::*;
+pub use result::Error;
