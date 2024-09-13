@@ -33,7 +33,7 @@ pub trait Actor {
     /// If not overridden, the default function does nothing.
     ///
     /// If the function returns an error, the actor terminates before processing any messages.
-    fn on_initialization(&self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
+    fn on_initialization(&mut self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
         Ok(())
     }}
 
