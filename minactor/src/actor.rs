@@ -20,19 +20,18 @@ pub trait Actor {
 
     /// The error type that actor functions return.
     ///
-    /// Actor functions will return a Result<_, ErrorType>. The ErrorType must be Send so that it
+    /// Actor functions will return a std::result::Result<_, ErrorType>. The ErrorType must be Send so that it
     /// can be passed between threads.
     type ErrorType: Send;
 
-    /// The on_initialization() function is called after the actor has started and before
+    /// This function is called after the actor has started and before
     /// message processing.
     ///
-    /// This function can be overridden to provide complex initialization capabilities, such as
-    /// opening a file or opening a network connection.
+    /// This function is executed in the context of the actor. It can be overridden to provide
+    /// complex initialization capabilities, such as opening a file or opening a network connection.
+    /// If not overridden, the default function does nothing.
     ///
-    /// If not overridden, this function does nothing.
-    ///
-    /// If the function returns an error, the actor terminates.
+    /// If the function returns an error, the actor terminates before processing any messages.
     fn on_initialization(&self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
         Ok(())
     }}

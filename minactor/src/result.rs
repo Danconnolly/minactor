@@ -1,6 +1,7 @@
 
 
 /// Standard Result used in the library
+#[doc(hidden)]
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Standard error type used in the library
