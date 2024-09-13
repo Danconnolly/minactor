@@ -57,7 +57,8 @@ mod tests {
     /// Test that shutdown will produce an error for calls.
     #[tokio::test]
     async fn test_shutdown_process() {
-        let (actor, handle) = create_actor::<DelayingActor>(()).await.unwrap();
+        let instance = DelayingActor::new();
+        let (actor, handle) = create_actor(instance).await.unwrap();
         // send 8 messages, just less than the default buffer size, these will get sent quickly
         for _i in 0..8 {
             let r = actor.send(DelayingMessage::Ping).await;
@@ -90,7 +91,8 @@ mod tests {
     /// Test whether we can make arbitary clones of ActorRef
     #[tokio::test]
     async fn test_ref_clone() {
-        let (actor, handle) = create_actor::<SimpleCounter>(()).await.unwrap();
+        let instance = SimpleCounter::new();
+        let (actor, handle) = create_actor(instance).await.unwrap();
         let act_clone = actor.clone();
         // confirm that both references have 0
         if let CounterMessage::Reply(a) = actor.call(CounterMessage::GetCount).await.unwrap().unwrap() {

@@ -20,19 +20,21 @@ struct HelloCounterActor {
     count: u64,
 }
 
+impl HelloCounterActor {
+    pub fn new() -> Self {
+        Self {
+            count: 0,
+        }
+    }
+}
+
+
 impl Actor for HelloCounterActor {
     type MessageType = HelloCounterMsg;
     /// Counters should probably always start at zero, but we want to give the capability to
     /// initialize the counter with a particular value. We're also going to add a second
     /// value that we dont use just for demonstration purposes.
-    type CreationArguments = (u64, String);
     type ErrorType = ();
-
-    /// Initialize the counter with a value.
-    fn new(args: Self::CreationArguments) -> Self  {
-        println!("creating actor, msg={}", args.1);
-        Self { count: args.0 }
-    }
 
     async fn handle_sends(&mut self, msg: Self::MessageType) -> Result<(), Self::ErrorType> {
         match msg {
@@ -66,7 +68,8 @@ impl Actor for HelloCounterActor {
 #[tokio::main]
 async fn main() {
     simple_logger::init_with_level(log::Level::Warn).unwrap();
-    let (actor_ref, handle) = create_actor::<HelloCounterActor>((5, "all fine, nothing to see here".to_string())).await.expect("unable to create actor");
+    let instance = HelloCounterActor::new();
+    let (actor_ref, handle) = create_actor(instance).await.expect("unable to create actor");
     for _i in 0..5082 {
         actor_ref.send(HelloCounterMsg::Hello).await.expect("unable to send message");
     }

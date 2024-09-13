@@ -14,17 +14,17 @@ enum HelloMsg {
 #[derive(Clone)]
 struct HelloWorldActor {}
 
+impl HelloWorldActor {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 impl Actor for HelloWorldActor {
     /// We want to send a simple Hello to the actor.
     type MessageType = HelloMsg;
-    /// We dont have any need to initialize the actor.
-    type CreationArguments = ();
     /// We're not using an error type.
     type ErrorType = ();
-
-    fn new(_args: Self::CreationArguments) -> Self {
-        HelloWorldActor {}
-    }
 
     async fn handle_sends(&mut self, msg: HelloMsg) -> Result<(), Self::ErrorType> {
         match msg {
@@ -40,8 +40,9 @@ impl Actor for HelloWorldActor {
 #[tokio::main]
 async fn main() {
     simple_logger::init_with_level(log::Level::Warn).unwrap();
+    let instance = HelloWorldActor::new();
     // create the actor
-    let (actor_ref, handle) = create_actor::<HelloWorldActor>(()).await.expect("unable to create actor");
+    let (actor_ref, handle) = create_actor(instance).await.expect("unable to create actor");
     // send the hello message
     actor_ref.send(HelloMsg::Hello).await.expect("unable to send message");
     // shutdown the actor straight away, it will finish processing messages before it shuts down

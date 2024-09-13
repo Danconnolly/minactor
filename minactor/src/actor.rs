@@ -18,26 +18,11 @@ pub trait Actor {
     /// passed between threads and ActorRef can be cloned.
     type MessageType: Send + Clone;
 
-    /// The type of the arguments that are used to create the actor.
-    ///
-    /// The actor struct is created by the create_actor() functions using the new() function
-    /// that is implemented by the actor.
-    type CreationArguments;
-
     /// The error type that actor functions return.
     ///
     /// Actor functions will return a Result<_, ErrorType>. The ErrorType must be Send so that it
     /// can be passed between threads.
     type ErrorType: Send;
-
-    /// The new() function must be defined, it is used to create a new instance of the Actor.
-    ///
-    /// This is a non-async function and must always return an instance. It is executed in the
-    /// context that calls the create_actor() function.
-    ///
-    /// This is not the place to do any complex initialization, it is just intended to set initial
-    /// values for the actor struct.
-    fn new(args: Self::CreationArguments) -> Self;
 
     /// The on_initialization() function is called after the actor has started and before
     /// message processing.
@@ -73,11 +58,10 @@ pub trait Actor {
 
 
 /// Instantiate an instance of an actor using default configuration.
-pub async fn create_actor<T>(args: T::CreationArguments) -> MinActorResult<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<Result<(), T::ErrorType>>)>
+pub async fn create_actor<T>(instance: T) -> MinActorResult<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<Result<(), T::ErrorType>>)>
 where
     T: Actor + Send + Sync + 'static
 {
-    let instance = T::new(args);
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
     let j = tokio::spawn( async move {
         let mut exec = ActorExecutor::new(instance, inbox);

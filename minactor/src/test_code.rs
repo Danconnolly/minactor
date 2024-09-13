@@ -23,14 +23,17 @@ pub mod tests {
         waited: bool,           // has it already waited?
     }
 
+    impl DelayingActor {
+        pub fn new() -> Self {
+            Self {
+                waited: false
+            }
+        }
+    }
+
     impl Actor for DelayingActor {
         type MessageType = DelayingMessage;
-        type CreationArguments = ();
         type ErrorType = ();
-
-        fn new(_args: Self::CreationArguments) -> Self {
-            Self { waited: false }
-        }
 
         async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
             if !self.waited {
@@ -59,14 +62,16 @@ pub mod tests {
         count: u64,
     }
 
+    impl SimpleCounter {
+        pub fn new() -> Self {
+            Self {
+                count: 0,
+            }
+        }
+    }
     impl Actor for SimpleCounter {
         type MessageType = CounterMessage;
-        type CreationArguments = ();
         type ErrorType = ();
-
-        fn new(_args: Self::CreationArguments) -> Self {
-            Self { count: 0 }
-        }
 
         async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
             self.count += 1;
