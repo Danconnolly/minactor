@@ -1,7 +1,7 @@
 use core::future::Future;
 use log::warn;
 use tokio::task::JoinHandle;
-use crate::Result;
+use crate::result::Result;
 use crate::actor_ref::ActorRef;
 use crate::executor::ActorExecutor;
 

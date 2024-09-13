@@ -1,5 +1,6 @@
 use tokio::sync::mpsc::Sender;
-use crate::{Error, Result};
+use crate::Error;
+use crate::result::Result;
 use crate::executor::ActorSysMsg;
 
 /// An ActorRef is a reference to an instance of an actor. It is the main contact point with the
