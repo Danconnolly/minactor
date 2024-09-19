@@ -2,13 +2,18 @@
 //!
 //! The actor counts the number of times it is sent a Hello message and returns the count when
 //! queried.
-use minactor::{create_actor, Actor};
+use minactor::{create_actor, Actor, Control};
 
 
 /// The type of messages sent to the HelloCounterActor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum HelloCounterMsg {
     Hello,
+}
+
+/// The type of messages used for HelloCounterActor calls.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum HelloCounterCalls {
     QueryCount,
     CountValue(u64),
 }
@@ -30,32 +35,26 @@ impl HelloCounterActor {
 
 
 impl Actor for HelloCounterActor {
-    type MessageType = HelloCounterMsg;
-    /// Counters should probably always start at zero, but we want to give the capability to
-    /// initialize the counter with a particular value. We're also going to add a second
-    /// value that we dont use just for demonstration purposes.
+    type SendMessage = HelloCounterMsg;
+    type CallMessage = HelloCounterCalls;
+    type InternalMessage = ();
     type ErrorType = ();
 
-    async fn handle_sends(&mut self, msg: Self::MessageType) -> Result<(), Self::ErrorType> {
+    async fn handle_sends(&mut self, msg: Self::SendMessage) -> Control<Self::InternalMessage> {
         match msg {
             HelloCounterMsg::Hello => {
                 self.count += 1;
-                Ok(())
-            },
-            _ => {
-                // only the HelloCounterMsg should be received here in the send handler, if another type
-                // is received then its probably a programming error
-                panic!("impossible message received.");
+                Control::Ok
             }
         }
     }
 
-    async fn handle_calls(&mut self, msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
+    async fn handle_calls(&mut self, msg: Self::CallMessage) -> (Control<Self::InternalMessage>, Result<Self::CallMessage, Self::ErrorType>) {
         match msg {
-            HelloCounterMsg::QueryCount => {
+            HelloCounterCalls::QueryCount => {
                 // return the count
                 // note that since the actor is single-threaded we dont need to bother with complex synchronization logic
-                Ok(HelloCounterMsg::CountValue(self.count))
+                (Control::Ok, Ok(HelloCounterCalls::CountValue(self.count)))
             }
             _ => {
                 panic!("impossible call message received");
@@ -73,8 +72,8 @@ async fn main() {
     for _i in 0..5082 {
         actor_ref.send(HelloCounterMsg::Hello).await.expect("unable to send message");
     }
-    let reply = actor_ref.call(HelloCounterMsg::QueryCount).await.unwrap().unwrap();
-    if let HelloCounterMsg::CountValue(count) = reply {
+    let reply = actor_ref.call(HelloCounterCalls::QueryCount).await.unwrap().unwrap();
+    if let HelloCounterCalls::CountValue(count) = reply {
         println!("count is {}", count);
     }
     actor_ref.shutdown().await.unwrap();

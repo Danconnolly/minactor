@@ -7,10 +7,13 @@
 
 mod actor;
 mod actor_ref;
+mod control;
 mod executor;
 mod result;
 mod test_code;
 
+
 pub use actor::{Actor, create_actor};
 pub use actor_ref::ActorRef;
+pub use control::Control;
 pub use result::Error;

@@ -1,7 +1,7 @@
 //! This is the classic helloworld implementation for the minactor framework.
 //! It creates a very simple actor (HelloWorldActor) which prints hello world when it is
 //! sent a Hello message.
-use minactor::{create_actor, Actor};
+use minactor::{create_actor, Actor, Control};
 
 
 /// The type of messages sent to the HelloWorldActor
@@ -22,15 +22,17 @@ impl HelloWorldActor {
 
 impl Actor for HelloWorldActor {
     /// We want to send a simple Hello to the actor.
-    type MessageType = HelloMsg;
-    /// We're not using an error type.
+    type SendMessage = HelloMsg;
+    /// We're not using these types.
+    type CallMessage = ();
+    type InternalMessage = ();
     type ErrorType = ();
 
-    async fn handle_sends(&mut self, msg: HelloMsg) -> Result<(), Self::ErrorType> {
+    async fn handle_sends(&mut self, msg: HelloMsg) -> Control<Self::InternalMessage> {
         match msg {
             HelloMsg::Hello => {
                 println!("the actor says hello");
-                Ok(())
+                Control::Ok
             },
         }
     }

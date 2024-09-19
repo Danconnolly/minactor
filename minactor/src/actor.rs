@@ -1,9 +1,10 @@
 use core::future::Future;
-use std::process::Output;
+use std::marker::{Send, Sync};
 use log::warn;
 use tokio::task::JoinHandle;
 use crate::result::Result;
 use crate::actor_ref::ActorRef;
+use crate::control::Control;
 use crate::executor::ActorExecutor;
 
 
@@ -12,18 +13,80 @@ use crate::executor::ActorExecutor;
 const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 
 /// The Actor trait. This is the trait that structs will need to implement to function as an actor.
+///
+/// An actor is an independent computational unit that communicates through messages and maintains
+/// it's own private state. In this library, each actor has its own single thread of control, which
+/// means that each actor runs independently from anything else and each actor runs in a single
+/// threaded fashion meaning that there are no concurrency issues within the actor itself.
+///
+/// A struct can become an actor by implementing this trait. Instances of the actor are created
+/// using the [create_actor()] function. This function returns an [ActorRef] which is used to
+/// control the instance and to send it messages. [ActorRef]s can be freely cloned and sent, there
+/// can be as many references to an actor instance as required.
+///
+/// The state of the actor is held in the struct that implements the Actor trait and is maintained
+/// by the Actor functions.
+///
+/// Once created, the actor executor will call the following functions as required:
+///
+/// * on_initialization() - this will be called immediately after the actor is created
+/// * handle_sends() - this is called whenever the actor receives a send message
+/// * handle_calls() - this is called whenever the actor receives a call message
+/// * on_shutdown() - this is called when the actor is being shut down
+///
+/// These functions return a [Control] enum, which enables the actor to control its execution,
+/// including shutdown and termination. [Control] also enables the integration of tasks
+/// from outside the actor framework. See [Control] for more information on the types of actions
+/// that can be initiated.
+///
+/// For more details on these functions, see the individual function documentation.
+///
+/// ## Integration of Futures
+///
+/// This framework provides the capability to integrate with futures created outside of the
+/// framework.
+///
+/// ## Shutdown, and Termination
+///
+/// todo: implement
+/// A shutdown is a controlled shutdown of the actor. It completes execution of all messages
+/// that were received prior to the stop and then shuts down. Messages that are received after the stop
+/// are discarded. In the case of send messages this has no direct effect and in the case of call messages
+/// this will result in an error for the calling task. The on_shutdown() function is called.
+///
+/// todo: implement
+/// A termination is an quicker shutdown of the actor. Messages that were sent
+/// prior to the termination are discarded. todo() finish defining.
+///
+/// ## Panics
+/// todo: what happens if an actor panics?
+///
 pub trait Actor {
-    /// The type of messages this actor uses.
+    /// The type of messages this actor uses for sends.
     ///
-    /// The only restrictions on the messages are that they are Send and Clone, so that they can be
+    /// The only restrictions on the messages are that they are Send and Sync, so that they can be
     /// passed between threads and ActorRef can be cloned.
-    type MessageType: Send + Clone;
+    type SendMessage: Send + Sync + Clone;
+    /// The type of messages this actor uses for calls. These messages include the call itself and
+    /// the result of the call.
+    ///
+    /// The only restrictions on the messages are that they are Send and Sync, so that they can be
+    /// passed between threads and ActorRef can be cloned.
+    type CallMessage: Send + Sync + Clone;
+    /// The type of messages this actor uses internally.
+    ///
+    /// These messages can be returned by miscellaneous asynchronous tasks that are performed by the
+    /// actor. Examples: the result of reading bytes from a file, the result of opening a file.
+    ///
+    /// The only restrictions on the messages are that they are Send and Sync, so that they can be
+    /// passed between threads and ActorRef can be cloned.
+    type InternalMessage: Send + Sync;
 
     /// The error type that actor functions return.
     ///
     /// Actor functions will return a std::result::Result<_, ErrorType>. The ErrorType must be Send so that it
     /// can be passed between threads.
-    type ErrorType: Send;
+    type ErrorType: Send + Sync + Clone;
 
     /// This function is called after the actor has started and before
     /// message processing.
@@ -32,9 +95,9 @@ pub trait Actor {
     /// complex initialization capabilities, such as opening a file or opening a network connection.
     /// If not overridden, the default function does nothing.
     ///
-    /// If the function returns an error, the actor terminates before processing any messages.
-    fn on_initialization(&mut self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
-        Ok(())
+    /// If the function returns an error, the actor shuts down before processing any messages.
+    fn on_initialization(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
+        Control::Ok
     }}
 
     /// This function handles messages that are sent, without expecting an answer.
@@ -42,30 +105,38 @@ pub trait Actor {
     /// This will always need to be overridden but a default is included which logs
     /// a warning and returns ().
     #[allow(unused)]        // msg is not used in the default
-    fn handle_sends(&mut self, msg: Self::MessageType) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send  { async {
+    fn handle_sends(&mut self, msg: Self::SendMessage) -> impl Future<Output = Control<Self::InternalMessage>> + Send  { async {
         warn!("unhandled sent message received.");
-        Ok(())
+        Control::Ok
     }}
 
     /// This function handles call messages, which expect an answering message.
     ///
     /// This will always need to be overridden but a default is included which panics.
     #[allow(unused)]        // msg is not used in the default
-    fn handle_calls(&mut self, msg: Self::MessageType) -> impl Future<Output = std::result::Result<Self::MessageType, Self::ErrorType>> + Send { async {
+    fn handle_calls(&mut self, msg: Self::CallMessage) -> impl Future<Output = (Control<Self::InternalMessage>, std::result::Result<Self::CallMessage, Self::ErrorType>)> + Send { async {
         panic!("unhandled call message received.");
     }}
 
-    /// The function is called just priori to shutdown.
+    /// This function is called when a previously registered future is completed.
+    ///
+    /// Futures can be registered with the actor executor by returning the future in a Control message.
+    #[allow(unused)]
+    fn handle_future(&mut self, msg: Option<Self::InternalMessage>) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
+       Control::Ok
+    }}
+
+    /// This function is called just prior to shutdown.
     ///
     /// The default implementation does nothing.
-    fn on_shutdown(&mut self) -> impl Future<Output = std::result::Result<(), Self::ErrorType>> + Send { async {
-        Ok(())
+    fn on_shutdown(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
+        Control::Ok
     }}
 }
 
 
 /// Create an instance of an actor using default configuration.
-pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::MessageType, T::ErrorType>, JoinHandle<std::result::Result<(), T::ErrorType>>)>
+pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>, JoinHandle<std::result::Result<(), T::ErrorType>>)>
 where
     T: Actor + Send + Sync + 'static
 {
@@ -74,6 +145,6 @@ where
         let mut exec = ActorExecutor::new(instance, inbox);
         exec.run().await
     });
-    Ok((ActorRef::<T::MessageType, T::ErrorType>::new(outbox), j))
+    Ok((ActorRef::<T::SendMessage, T::CallMessage, T::ErrorType>::new(outbox), j))
 }
 

@@ -2,18 +2,24 @@
 
 #[cfg(test)]
 pub mod tests {
+    use std::future::Future;
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
     use crate::Actor;
-
+    use crate::control::Control;
 
     /// an atomic counter that we use for testing
     pub static COUNTER: AtomicU64 = AtomicU64::new(0);
 
-    /// Message type for DelayingActor
+    /// Message type for DelayingActor sends
     #[derive(Debug, PartialEq, Clone)]
-    pub enum DelayingMessage {
+    pub enum DelayingSends {
         Ping,
+    }
+
+    /// Message type for DelayingActor calls
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum DelayingCalls {
         DoPong,
         Pong,
     }
@@ -32,27 +38,34 @@ pub mod tests {
     }
 
     impl Actor for DelayingActor {
-        type MessageType = DelayingMessage;
+        type SendMessage = DelayingSends;
+        type CallMessage = DelayingCalls;
+        type InternalMessage = ();
         type ErrorType = ();
 
-        async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
+        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control<Self::InternalMessage> {
             if !self.waited {
                 tokio::time::sleep(Duration::new(0, 100)).await;
             }
             // add one to the counter
             let _j = COUNTER.fetch_add(1, Ordering::Relaxed);
-            Ok(())
+            Control::Ok
         }
 
-        async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
-            Ok(DelayingMessage::Pong)
+        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control<Self::InternalMessage>, std::result::Result<Self::CallMessage, Self::ErrorType>) {
+            (Control::Ok, Ok(DelayingCalls::Pong))
         }
     }
 
-    /// Message type for SimpleCounter
+    /// Message type for SimpleCounter sends
     #[derive(Debug, PartialEq, Clone)]
-    pub enum CounterMessage {
+    pub enum CounterSends {
         Count,
+    }
+
+    /// Message type for SimpleCounter calls
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum CounterCalls {
         GetCount,
         Reply(u64),
     }
@@ -70,16 +83,18 @@ pub mod tests {
         }
     }
     impl Actor for SimpleCounter {
-        type MessageType = CounterMessage;
+        type SendMessage = CounterSends;
+        type CallMessage = CounterCalls;
+        type InternalMessage = ();
         type ErrorType = ();
 
-        async fn handle_sends(&mut self, _msg: Self::MessageType) -> Result<(), Self::ErrorType> {
+        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control<Self::InternalMessage> {
             self.count += 1;
-            Ok(())
+            Control::Ok
         }
 
-        async fn handle_calls(&mut self, _msg: Self::MessageType) -> Result<Self::MessageType, Self::ErrorType> {
-            Ok(CounterMessage::Reply(self.count))
+        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control<Self::InternalMessage>, Result<Self::CallMessage, Self::ErrorType>) {
+            (Control::Ok, Ok(CounterCalls::Reply(self.count)))
         }
     }
 }
