@@ -76,5 +76,5 @@ async fn main() {
         println!("count is {}", count);
     }
     actor_ref.shutdown().await.unwrap();
-    handle.await.expect("error waiting for handle").expect("minactor returned error");
+    handle.await.expect("error waiting for handle");
 }

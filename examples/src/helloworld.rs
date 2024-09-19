@@ -49,5 +49,5 @@ async fn main() {
     // shutdown the actor straight away, it will finish processing messages before it shuts down
     actor_ref.shutdown().await.unwrap();
     // wait for the actor task to finish
-    handle.await.expect("error waiting for handle").expect("minactor returned error");
+    handle.await.expect("error waiting for handle");
 }
