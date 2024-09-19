@@ -27,13 +27,13 @@ where
     }
 
     /// Executor run loop.
-    pub(crate) async fn run(&mut self) -> crate::result::Result<()> {
+    pub(crate) async fn run(&mut self) {
         use ActorSysMsg::*;
         let r = self.instance.on_initialization().await;
         match self.handle_control(r).await {
             Ok(()) => {},
-            err => {
-                return err;
+            _err => {
+                return;
             },
         }
         // main message processing loop
@@ -51,7 +51,7 @@ where
                 },
                 Send(msg) => {
                     let r = self.instance.handle_sends(msg).await;
-                    self.handle_control(r).await?;
+                    self.handle_control(r).await;       // todo
                 },
                 Call(msg, dest) => {
                     let (control, result) = self.instance.handle_calls(msg).await;
@@ -61,7 +61,7 @@ where
                             warn!("unable to send reply of call message to caller.");
                         }
                     }
-                    self.handle_control(control).await?;
+                    self.handle_control(control).await; // todo
                 },
             }
         }
@@ -69,7 +69,6 @@ where
         if ! self.tasks.is_empty() {
             self.tasks.wait().await;
         }
-        Ok(())
     }
 
     /// Several of the actor methods return a Control message, handle it here.

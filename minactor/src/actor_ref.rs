@@ -91,8 +91,7 @@ mod tests {
         assert!(r.is_err());
         assert_eq!(r, Err(Error::UnableToSend));
         // wait for the actor to finish processing all messages, which should be immediate
-        let r = handle.await.unwrap();
-        assert!(r.is_ok());
+        handle.await.unwrap();
         // the counter value should now be 8, showing that the messages were processed
         // before the actor shut down
         let v = COUNTER.load(Ordering::Relaxed);
