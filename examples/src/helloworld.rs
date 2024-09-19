@@ -25,7 +25,6 @@ impl Actor for HelloWorldActor {
     type SendMessage = HelloMsg;
     /// We're not using these types.
     type CallMessage = ();
-    type InternalMessage = ();
     type ErrorType = ();
 
     async fn handle_sends(&mut self, msg: HelloMsg) -> Control {

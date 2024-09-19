@@ -75,15 +75,6 @@ pub trait Actor {
     /// The only restrictions on the messages are that they are Send and Sync, so that they can be
     /// passed between threads and ActorRef can be cloned.
     type CallMessage: Send + Sync + Clone;
-    /// The type of messages this actor uses internally.
-    ///
-    /// These messages can be returned by miscellaneous asynchronous tasks that are performed by the
-    /// actor. Examples: the result of reading bytes from a file, the result of opening a file.
-    ///
-    /// The only restrictions on the messages are that they are Send and Sync, so that they can be
-    /// passed between threads and ActorRef can be cloned.
-    type InternalMessage: Send + Sync;
-
     /// The error type that actor functions return.
     ///
     /// Actor functions will return a std::result::Result<_, ErrorType>. The ErrorType must be Send so that it

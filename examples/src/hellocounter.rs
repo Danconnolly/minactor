@@ -37,10 +37,9 @@ impl HelloCounterActor {
 impl Actor for HelloCounterActor {
     type SendMessage = HelloCounterMsg;
     type CallMessage = HelloCounterCalls;
-    type InternalMessage = ();
     type ErrorType = ();
 
-    async fn handle_sends(&mut self, msg: Self::SendMessage) -> Control<Self::InternalMessage> {
+    async fn handle_sends(&mut self, msg: Self::SendMessage) -> Control {
         match msg {
             HelloCounterMsg::Hello => {
                 self.count += 1;
@@ -49,7 +48,7 @@ impl Actor for HelloCounterActor {
         }
     }
 
-    async fn handle_calls(&mut self, msg: Self::CallMessage) -> (Control<Self::InternalMessage>, Result<Self::CallMessage, Self::ErrorType>) {
+    async fn handle_calls(&mut self, msg: Self::CallMessage) -> (Control, Result<Self::CallMessage, Self::ErrorType>) {
         match msg {
             HelloCounterCalls::QueryCount => {
                 // return the count

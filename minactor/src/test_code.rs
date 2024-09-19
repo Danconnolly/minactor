@@ -39,7 +39,6 @@ pub mod tests {
     impl Actor for DelayingActor {
         type SendMessage = DelayingSends;
         type CallMessage = DelayingCalls;
-        type InternalMessage = ();
         type ErrorType = ();
 
         async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control {
@@ -86,7 +85,6 @@ pub mod tests {
     impl Actor for SimpleCounter {
         type SendMessage = CounterSends;
         type CallMessage = CounterCalls;
-        type InternalMessage = ();
         type ErrorType = ();
 
         async fn on_initialization(&mut self) -> Control {
