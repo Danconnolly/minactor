@@ -32,16 +32,22 @@ where
                 return err;
             },
         }
+        // main message processing loop
         while let Some(sys_msg) = self.inbox.recv().await {
             match sys_msg {
                 Shutdown => {
+                    let r = self.instance.on_shutdown().await;
+                    match r {
+                        Control::Ok | Control::Shutdown | Control::Terminate => {},
+                        Control::AddFuture(f) => {
+                            todo!();
+                        }
+                    }
                     break;
                 },
                 Send(msg) => {
-                    match self.instance.handle_sends(msg).await {
-                        Control::Ok => {},
-                        _ => { todo!(); }
-                    }
+                    let r = self.instance.handle_sends(msg).await;
+                    self.handle_control(r).await?;
                 },
                 Call(msg, dest) => {
                     let (control, result) = self.instance.handle_calls(msg).await;
@@ -51,11 +57,8 @@ where
                             warn!("unable to send reply of call message to caller.");
                         }
                     }
-                    // todo: handle control message
+                    self.handle_control(control).await?;
                 },
-                Terminate => {
-                    todo!();
-                }
             }
         }
         Ok(())
@@ -67,6 +70,7 @@ where
             Control::Ok => Ok(()),
             Control::Terminate => Err(crate::result::Error::Terminated),
             Control::Shutdown => {
+                // queue up a shutdown message
                 self.actor_ref.shutdown().await
             },
             Control::AddFuture(f) => {
@@ -82,8 +86,6 @@ pub(crate) enum ActorSysMsg<S, C, E>
 where S: Send, C: Send, E: Send {
     /// Normal shutdown
     Shutdown,
-    /// Terminate immediately
-    Terminate,
     /// A send message
     Send(S),
     /// A call message
@@ -100,7 +102,7 @@ mod tests {
     #[tokio::test]
     async fn test_init_quit() {
         let instance = SimpleCounter::new(true);
-        let (actor, handle) = create_actor(instance).await.unwrap();
+        let (_actor, handle) = create_actor(instance).await.unwrap();
         let r = handle.await;
         assert!(r.is_ok());
     }

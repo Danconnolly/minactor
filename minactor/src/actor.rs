@@ -50,13 +50,15 @@ const DEFAULT_ACTOR_BUFFER_SIZE: usize = 10;
 ///
 /// todo: implement
 /// A shutdown is a controlled shutdown of the actor. It completes execution of all messages
-/// that were received prior to the stop and then shuts down. Messages that are received after the stop
+/// that were received prior to the shutdown instruction, awaits any registered futures, and then
+/// shuts down. Messages that are received after the shutdown instruction
 /// are discarded. In the case of send messages this has no direct effect and in the case of call messages
 /// this will result in an error for the calling task. The on_shutdown() function is called.
 ///
 /// todo: implement
 /// A termination is an quicker shutdown of the actor. Messages that were sent
-/// prior to the termination are discarded. todo() finish defining.
+/// prior to the termination are discarded. Any futures that were registered and that are still active
+/// are cancelled.
 ///
 /// ## Panics
 /// todo: what happens if an actor panics?
@@ -132,7 +134,14 @@ pub trait Actor {
        Control::Ok
     }}
 
-    /// This function is called just prior to shutdown.
+    /// This function is called prior to shutdown.
+    ///
+    /// This function is called first, after which any registered futures are awaited. The return
+    /// values from these futures are ignored (handle_future() is not called).
+    ///
+    /// A [Control] must be returned by this function. [Control::Shutdown], [Control::Terminate] are
+    /// ignored. A [Control::AddFuture] will be implemented and the future will be added to the
+    /// list of futures that are awaited before the shutdown completes.
     ///
     /// The default implementation does nothing.
     fn on_shutdown(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
