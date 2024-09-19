@@ -1,5 +1,8 @@
+use std::future::Future;
+use std::pin::{pin, Pin};
 use log::warn;
 use tokio::sync::mpsc::Receiver;
+use tokio_util::task::TaskTracker;
 use crate::{Actor, ActorRef};
 use crate::control::Control;
 
@@ -9,6 +12,7 @@ where T: Actor + Send {
     instance: T,
     inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>,
     actor_ref: ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>,
+    tasks: TaskTracker,
 }
 
 impl<T> ActorExecutor<T>
@@ -18,7 +22,7 @@ where
     /// Create a new instance of the executor.
     pub(crate) fn new(instance: T, inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>, actor_ref: ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>) -> Self {
         ActorExecutor {
-            instance, inbox, actor_ref
+            instance, inbox, actor_ref, tasks: TaskTracker::new(),
         }
     }
 
@@ -39,8 +43,8 @@ where
                     let r = self.instance.on_shutdown().await;
                     match r {
                         Control::Ok | Control::Shutdown | Control::Terminate => {},
-                        Control::AddFuture(f) => {
-                            todo!();
+                        Control::SpawnFuture(f) => {
+                            self.spawn_future(f);
                         }
                     }
                     break;
@@ -61,11 +65,15 @@ where
                 },
             }
         }
+        self.tasks.close();
+        if ! self.tasks.is_empty() {
+            self.tasks.wait().await;
+        }
         Ok(())
     }
 
     /// Several of the actor methods return a Control message, handle it here.
-    async fn handle_control(&mut self, control: Control<T::InternalMessage>) -> crate::result::Result<()> {
+    async fn handle_control(&mut self, control: Control) -> crate::result::Result<()> {
         match control {
             Control::Ok => Ok(()),
             Control::Terminate => Err(crate::result::Error::Terminated),
@@ -73,10 +81,16 @@ where
                 // queue up a shutdown message
                 self.actor_ref.shutdown().await
             },
-            Control::AddFuture(f) => {
-                todo!();
+            Control::SpawnFuture(f) => {
+                self.spawn_future(f);
+                Ok(())
             }
         }
+    }
+
+    /// Spawn the future into a task and track it.
+    fn spawn_future(&mut self, f: Pin<Box<dyn Future<Output=()> + Send>>) {
+        self.tasks.spawn(f);
     }
 }
 

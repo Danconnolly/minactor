@@ -104,7 +104,7 @@ pub trait Actor {
     /// returned then the shutdown is queued behind other messages that may have already been received.
     /// The [Control::Shutdown] instruction does not preempt these messages. If a [Control::Terminate]
     /// instruction is returned then this does preempt the processing of other messages.
-    fn on_initialization(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
+    fn on_initialization(&mut self) -> impl Future<Output = Control> + Send { async {
         Control::Ok
     }}
 
@@ -113,7 +113,7 @@ pub trait Actor {
     /// This will always need to be overridden but a default is included which logs
     /// a warning and returns ().
     #[allow(unused)]        // msg is not used in the default
-    fn handle_sends(&mut self, msg: Self::SendMessage) -> impl Future<Output = Control<Self::InternalMessage>> + Send  { async {
+    fn handle_sends(&mut self, msg: Self::SendMessage) -> impl Future<Output = Control> + Send  { async {
         warn!("unhandled sent message received.");
         Control::Ok
     }}
@@ -122,16 +122,8 @@ pub trait Actor {
     ///
     /// This will always need to be overridden but a default is included which panics.
     #[allow(unused)]        // msg is not used in the default
-    fn handle_calls(&mut self, msg: Self::CallMessage) -> impl Future<Output = (Control<Self::InternalMessage>, std::result::Result<Self::CallMessage, Self::ErrorType>)> + Send { async {
+    fn handle_calls(&mut self, msg: Self::CallMessage) -> impl Future<Output = (Control, std::result::Result<Self::CallMessage, Self::ErrorType>)> + Send { async {
         panic!("unhandled call message received.");
-    }}
-
-    /// This function is called when a previously registered future is completed.
-    ///
-    /// Futures can be registered with the actor executor by returning the future in a Control message.
-    #[allow(unused)]
-    fn handle_future(&mut self, msg: Option<Self::InternalMessage>) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
-       Control::Ok
     }}
 
     /// This function is called prior to shutdown.
@@ -140,11 +132,11 @@ pub trait Actor {
     /// values from these futures are ignored (handle_future() is not called).
     ///
     /// A [Control] must be returned by this function. [Control::Shutdown], [Control::Terminate] are
-    /// ignored. A [Control::AddFuture] will be implemented and the future will be added to the
-    /// list of futures that are awaited before the shutdown completes.
+    /// ignored. A [Control::SpawnFuture] will be implemented and the task will be added to the
+    /// list of tasks that are awaited before the shutdown completes.
     ///
     /// The default implementation does nothing.
-    fn on_shutdown(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
+    fn on_shutdown(&mut self) -> impl Future<Output = Control> + Send { async {
         Control::Ok
     }}
 }

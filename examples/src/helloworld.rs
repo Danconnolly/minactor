@@ -28,7 +28,7 @@ impl Actor for HelloWorldActor {
     type InternalMessage = ();
     type ErrorType = ();
 
-    async fn handle_sends(&mut self, msg: HelloMsg) -> Control<Self::InternalMessage> {
+    async fn handle_sends(&mut self, msg: HelloMsg) -> Control {
         match msg {
             HelloMsg::Hello => {
                 println!("the actor says hello");

@@ -42,7 +42,7 @@ pub mod tests {
         type InternalMessage = ();
         type ErrorType = ();
 
-        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control<Self::InternalMessage> {
+        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control {
             if !self.waited {
                 tokio::time::sleep(Duration::new(0, 100)).await;
             }
@@ -51,7 +51,7 @@ pub mod tests {
             Control::Ok
         }
 
-        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control<Self::InternalMessage>, std::result::Result<Self::CallMessage, Self::ErrorType>) {
+        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control, Result<Self::CallMessage, Self::ErrorType>) {
             (Control::Ok, Ok(DelayingCalls::Pong))
         }
     }
@@ -89,7 +89,7 @@ pub mod tests {
         type InternalMessage = ();
         type ErrorType = ();
 
-        async fn on_initialization(&mut self) -> Control<Self::InternalMessage> {
+        async fn on_initialization(&mut self) -> Control {
             if self.immediate_quit {
                 Control::Shutdown
             } else {
@@ -97,12 +97,12 @@ pub mod tests {
             }
         }
 
-        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control<Self::InternalMessage> {
+        async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control {
             self.count += 1;
             Control::Ok
         }
 
-        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control<Self::InternalMessage>, Result<Self::CallMessage, Self::ErrorType>) {
+        async fn handle_calls(&mut self, _msg: Self::CallMessage) -> (Control, Result<Self::CallMessage, Self::ErrorType>) {
             (Control::Ok, Ok(CounterCalls::Reply(self.count)))
         }
     }
