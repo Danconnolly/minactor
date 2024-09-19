@@ -95,7 +95,13 @@ pub trait Actor {
     /// complex initialization capabilities, such as opening a file or opening a network connection.
     /// If not overridden, the default function does nothing.
     ///
-    /// If the function returns an error, the actor shuts down before processing any messages.
+    /// Note that messages from clients can be received while this function is being executed. These
+    /// messages will be executed directly after this function has completed.
+    ///
+    /// Implementations can return any of the [Control] instructions. If a [Control::Shutdown] is
+    /// returned then the shutdown is queued behind other messages that may have already been received.
+    /// The [Control::Shutdown] instruction does not preempt these messages. If a [Control::Terminate]
+    /// instruction is returned then this does preempt the processing of other messages.
     fn on_initialization(&mut self) -> impl Future<Output = Control<Self::InternalMessage>> + Send { async {
         Control::Ok
     }}
@@ -136,15 +142,17 @@ pub trait Actor {
 
 
 /// Create an instance of an actor using default configuration.
-pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>, JoinHandle<std::result::Result<(), T::ErrorType>>)>
+pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>, JoinHandle<Result<()>>)>
 where
     T: Actor + Send + Sync + 'static
 {
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
+    let a_ref = ActorRef::<T::SendMessage, T::CallMessage, T::ErrorType>::new(outbox);
+    let a_clone = a_ref.clone();
     let j = tokio::spawn( async move {
-        let mut exec = ActorExecutor::new(instance, inbox);
+        let mut exec = ActorExecutor::new(instance, inbox, a_clone);
         exec.run().await
     });
-    Ok((ActorRef::<T::SendMessage, T::CallMessage, T::ErrorType>::new(outbox), j))
+    Ok((a_ref, j))
 }
 

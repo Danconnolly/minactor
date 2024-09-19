@@ -11,9 +11,13 @@ use crate::executor::ActorSysMsg;
 /// ActorRefs can be cloned as many times as required and can be sent across threads.
 // T is message type and U is error type
 #[derive(Clone)]
-pub struct ActorRef<T, C, U> where T: Send + Sync + Clone, C: Send, U: Send + Sync + Clone {
+pub struct ActorRef<S, C, E>
+where S: Send + Sync + Clone,       // SendMessage type
+      C: Send,                      // CallMessage type
+      E: Send + Sync + Clone        // Error type
+{
     /// The channel to the actor for sending messages.
-    outbox: Sender<ActorSysMsg<T, C, U>>,
+    outbox: Sender<ActorSysMsg<S, C, E>>,
 }
 
 impl<T, C, U> ActorRef<T, C, U> where T: Send + Sync + Clone, C: Send, U: Send + Sync + Clone {
@@ -59,7 +63,6 @@ mod tests {
     use crate::create_actor;
     use super::*;
     use std::sync::atomic::Ordering;
-    use tokio::io::AsyncWriteExt;
     use crate::test_code::tests::*;
 
     /// Test that shutdown will produce an error for calls.
@@ -99,7 +102,7 @@ mod tests {
     /// Test whether we can make arbitary clones of ActorRef
     #[tokio::test]
     async fn test_ref_clone() {
-        let instance = SimpleCounter::new();
+        let instance = SimpleCounter::new(false);
         let (actor, handle) = create_actor(instance).await.unwrap();
         let act_clone = actor.clone();
         // confirm that both references have 0

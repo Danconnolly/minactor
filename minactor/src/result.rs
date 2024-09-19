@@ -15,6 +15,8 @@ pub enum Error {
     UnableToSend,
     /// Unable to receive a message, probably due to actor termination.
     UnableToReceive,
+    /// Processing has been interrupted due to a terminate instruction.
+    Terminated,
 }
 
 // toco: implement display

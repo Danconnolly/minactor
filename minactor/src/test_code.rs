@@ -73,12 +73,14 @@ pub mod tests {
     /// Simple actor for testing purposes. It counts.
     pub struct SimpleCounter {
         count: u64,
+        immediate_quit: bool,       // if true, then the actor will return Shutdown in on_initialization()
     }
 
     impl SimpleCounter {
-        pub fn new() -> Self {
+        pub fn new(immediate_quit: bool) -> Self {
             Self {
                 count: 0,
+                immediate_quit,
             }
         }
     }
@@ -87,6 +89,14 @@ pub mod tests {
         type CallMessage = CounterCalls;
         type InternalMessage = ();
         type ErrorType = ();
+
+        async fn on_initialization(&mut self) -> Control<Self::InternalMessage> {
+            if self.immediate_quit {
+                Control::Shutdown
+            } else {
+                Control::Ok
+            }
+        }
 
         async fn handle_sends(&mut self, _msg: Self::SendMessage) -> Control<Self::InternalMessage> {
             self.count += 1;
