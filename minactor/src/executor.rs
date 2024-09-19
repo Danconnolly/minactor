@@ -11,7 +11,7 @@ pub(crate) struct ActorExecutor<T>
 where T: Actor + Send {
     instance: T,
     inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>,
-    actor_ref: ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>,
+    actor_ref: ActorRef<T>,
     tasks: TaskTracker,
 }
 
@@ -20,7 +20,7 @@ where
     T: Actor + Send + Sync
 {
     /// Create a new instance of the executor.
-    pub(crate) fn new(instance: T, inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>, actor_ref: ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>) -> Self {
+    pub(crate) fn new(instance: T, inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>, actor_ref: ActorRef<T>) -> Self {
         ActorExecutor {
             instance, inbox, actor_ref, tasks: TaskTracker::new(),
         }

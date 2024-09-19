@@ -1,5 +1,5 @@
 use tokio::sync::mpsc::Sender;
-use crate::Error;
+use crate::{Actor, Error};
 use crate::result::Result;
 use crate::executor::ActorSysMsg;
 
@@ -10,31 +10,28 @@ use crate::executor::ActorSysMsg;
 ///
 /// ActorRefs can be cloned as many times as required and can be sent across threads.
 // T is message type and U is error type
-#[derive(Clone)]
-pub struct ActorRef<S, C, E>
-where S: Send + Sync + Clone,       // SendMessage type
-      C: Send,                      // CallMessage type
-      E: Send + Sync + Clone        // Error type
+pub struct ActorRef<A>
+where A: Actor
 {
     /// The channel to the actor for sending messages.
-    outbox: Sender<ActorSysMsg<S, C, E>>,
+    outbox: Sender<ActorSysMsg<A::SendMessage, A::CallMessage, A::ErrorType>>,
 }
 
-impl<T, C, U> ActorRef<T, C, U> where T: Send + Sync + Clone, C: Send, U: Send + Sync + Clone {
-    pub(crate) fn new(outbox: Sender<ActorSysMsg<T, C, U>>) -> Self {
+impl<A> ActorRef<A> where A: Actor {
+    pub(crate) fn new(outbox: Sender<ActorSysMsg<A::SendMessage, A::CallMessage, A::ErrorType>>) -> Self {
         Self {
             outbox
         }
     }
 
     /// Send a message to the actor without expecting a response.
-    pub async fn send(&self, msg: T) -> Result<()> {
+    pub async fn send(&self, msg: A::SendMessage) -> Result<()> {
         self.outbox.send(ActorSysMsg::Send(msg)).await.map_err(|_| Error::UnableToSend)?;
         Ok(())
     }
 
     /// Send a message to the actor and await a response.
-    pub async fn call(&self, msg: C) -> Result<std::result::Result<C, U>> {
+    pub async fn call(&self, msg: A::CallMessage) -> Result<std::result::Result<A::CallMessage, A::ErrorType>> {
         let (send, recv) = tokio::sync::oneshot::channel();
         self.outbox.send(ActorSysMsg::Call(msg, send)).await.map_err(|_| Error::UnableToSend)?;
         let reply = recv.await.map_err(|_| Error::UnableToReceive)?;
@@ -57,12 +54,24 @@ impl<T, C, U> ActorRef<T, C, U> where T: Send + Sync + Clone, C: Send, U: Send +
     }
 }
 
+impl<A> Clone for ActorRef<A>
+where
+    A: Actor,
+{
+    fn clone(&self) -> Self {
+        Self {
+            outbox: self.outbox.clone(),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use crate::create_actor;
     use super::*;
     use std::sync::atomic::Ordering;
+    use tokio::io::AsyncWriteExt;
     use crate::test_code::tests::*;
 
     /// Test that shutdown will produce an error for calls.

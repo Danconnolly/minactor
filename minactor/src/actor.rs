@@ -134,12 +134,12 @@ pub trait Actor {
 
 
 /// Create an instance of an actor using default configuration.
-pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T::SendMessage, T::CallMessage, T::ErrorType>, JoinHandle<()>)>
+pub async fn create_actor<T>(instance: T) -> Result<(ActorRef<T>, JoinHandle<()>)>
 where
     T: Actor + Send + Sync + 'static
 {
     let (outbox, inbox) = tokio::sync::mpsc::channel(DEFAULT_ACTOR_BUFFER_SIZE);
-    let a_ref = ActorRef::<T::SendMessage, T::CallMessage, T::ErrorType>::new(outbox);
+    let a_ref = ActorRef::<T>::new(outbox);
     let a_clone = a_ref.clone();
     let j = tokio::spawn( async move {
         let mut exec = ActorExecutor::new(instance, inbox, a_clone);
