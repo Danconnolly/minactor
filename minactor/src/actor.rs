@@ -81,8 +81,7 @@ pub trait Actor {
     /// can be passed between threads.
     type ErrorType: Send + Sync + Clone;
 
-    /// This function is called after the actor has started and before
-    /// message processing.
+    /// This function is called after the actor has started and before message processing.
     ///
     /// This function is executed in the context of the actor. It can be overridden to provide
     /// complex initialization capabilities, such as opening a file or opening a network connection.
@@ -91,11 +90,15 @@ pub trait Actor {
     /// Note that messages from clients can be received while this function is being executed. These
     /// messages will be executed directly after this function has completed.
     ///
+    /// * self_ref - this is an [ActorRef] to the actor. Store this in the struct if needed.
+    ///
     /// Implementations can return any of the [Control] instructions. If a [Control::Shutdown] is
-    /// returned then the shutdown is queued behind other messages that may have already been received.
-    /// The [Control::Shutdown] instruction does not preempt these messages. If a [Control::Terminate]
-    /// instruction is returned then this does preempt the processing of other messages.
-    fn on_initialization(&mut self) -> impl Future<Output = Control> + Send { async {
+    /// returned then the shutdown is queued behind other messages that may have already been received,
+    /// in other words the [Control::Shutdown] instruction does not preempt these messages. If a
+    /// [Control::Terminate] instruction is returned then this does preempt the processing of other
+    /// messages.
+    #[allow(unused)]
+    fn on_initialization(&mut self, self_ref: ActorRef<Self>) -> impl Future<Output = Control> + Send { async {
         Control::Ok
     }}
 

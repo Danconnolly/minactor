@@ -4,7 +4,7 @@
 pub mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
-    use crate::Actor;
+    use crate::{Actor, ActorRef};
     use crate::control::Control;
 
     /// an atomic counter that we use for testing
@@ -87,7 +87,7 @@ pub mod tests {
         type CallMessage = CounterCalls;
         type ErrorType = ();
 
-        async fn on_initialization(&mut self) -> Control {
+        async fn on_initialization(&mut self, _self_ref: ActorRef<Self>) -> Control {
             if self.immediate_quit {
                 Control::Shutdown
             } else {

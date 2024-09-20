@@ -11,7 +11,7 @@ use crate::executor::ActorSysMsg;
 /// ActorRefs can be cloned as many times as required and can be sent across threads.
 // T is message type and U is error type
 pub struct ActorRef<A>
-where A: Actor
+where A: Actor + ?Sized
 {
     /// The channel to the actor for sending messages.
     outbox: Sender<ActorSysMsg<A::SendMessage, A::CallMessage, A::ErrorType>>,
@@ -71,7 +71,6 @@ mod tests {
     use crate::create_actor;
     use super::*;
     use std::sync::atomic::Ordering;
-    use tokio::io::AsyncWriteExt;
     use crate::test_code::tests::*;
 
     /// Test that shutdown will produce an error for calls.

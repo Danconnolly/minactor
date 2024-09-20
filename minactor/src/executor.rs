@@ -1,5 +1,5 @@
 use std::future::Future;
-use std::pin::{pin, Pin};
+use std::pin::Pin;
 use log::warn;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
@@ -29,7 +29,7 @@ where
     /// Executor run loop.
     pub(crate) async fn run(&mut self) {
         use ActorSysMsg::*;
-        let r = self.instance.on_initialization().await;
+        let r = self.instance.on_initialization(self.actor_ref.clone()).await;
         match self.handle_control(r).await {
             Ok(()) => {},
             _err => {
