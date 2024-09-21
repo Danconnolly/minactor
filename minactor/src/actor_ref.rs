@@ -1,4 +1,5 @@
 use tokio::sync::mpsc::Sender;
+use tokio_util::sync::CancellationToken;
 use crate::{Actor, Error};
 use crate::result::Result;
 use crate::executor::ActorSysMsg;
@@ -15,12 +16,15 @@ where A: Actor + ?Sized
 {
     /// The channel to the actor for sending messages.
     outbox: Sender<ActorSysMsg<A::SendMessage, A::CallMessage, A::ErrorType>>,
+    /// [CancellationToken] to terminate the actor.
+    pub(crate) terminate_token: CancellationToken,
 }
 
 impl<A> ActorRef<A> where A: Actor {
     pub(crate) fn new(outbox: Sender<ActorSysMsg<A::SendMessage, A::CallMessage, A::ErrorType>>) -> Self {
         Self {
-            outbox
+            outbox,
+            terminate_token: CancellationToken::new(),
         }
     }
 
@@ -49,8 +53,11 @@ impl<A> ActorRef<A> where A: Actor {
     }
 
     /// Terminate the actor.
-    pub async fn terminate(&self) -> Result<()> {
-        todo!();
+    ///
+    /// Termination is an immediate shutdown of the actor. It is more brutal and immediate than
+    /// [shutdown()].
+    pub fn terminate(&self) {
+        self.terminate_token.cancel();
     }
 }
 
@@ -61,6 +68,7 @@ where
     fn clone(&self) -> Self {
         Self {
             outbox: self.outbox.clone(),
+            terminate_token: self.terminate_token.clone(),
         }
     }
 }

@@ -1,6 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use log::warn;
+use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
 use crate::{Actor, ActorRef};
@@ -9,9 +10,13 @@ use crate::control::Control;
 /// The ActorExecutor executes the actor, receiving messages and forwarding them to handlers.
 pub(crate) struct ActorExecutor<T>
 where T: Actor + Send {
+    /// The actor struct.
     instance: T,
+    /// Messages are received here.
     inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>,
+    /// Reference to the actor.
     actor_ref: ActorRef<T>,
+    /// Tasks that are being tracked.
     tasks: TaskTracker,
 }
 
@@ -22,7 +27,7 @@ where
     /// Create a new instance of the executor.
     pub(crate) fn new(instance: T, inbox: Receiver<ActorSysMsg<T::SendMessage, T::CallMessage, T::ErrorType>>, actor_ref: ActorRef<T>) -> Self {
         ActorExecutor {
-            instance, inbox, actor_ref, tasks: TaskTracker::new(),
+            instance, inbox, actor_ref, tasks: TaskTracker::new()
         }
     }
 
@@ -36,38 +41,51 @@ where
                 return;
             },
         }
-        // main message processing loop
-        while let Some(sys_msg) = self.inbox.recv().await {
-            match sys_msg {
-                Shutdown => {
-                    let r = self.instance.on_shutdown().await;
+        loop {
+            // main message processing loop
+            select! {
+                _ = self.actor_ref.terminate_token.cancelled() => { break; }
+                r = self.inbox.recv() => {
                     match r {
-                        Control::Ok | Control::Shutdown | Control::Terminate => {},
-                        Control::SpawnFuture(f) => {
-                            self.spawn_future(f);
+                        None => { break; }
+                        Some(sys_msg) => {
+                            match sys_msg {
+                                Shutdown => {
+                                    let r = self.instance.on_shutdown().await;
+                                    match r {
+                                        Control::Ok | Control::Shutdown | Control::Terminate => {},
+                                        Control::SpawnFuture(f) => {
+                                            self.spawn_future(f);
+                                        }
+                                    }
+                                    break;
+                                },
+                                Send(msg) => {
+                                    let r = self.instance.handle_sends(msg).await;
+                                    self.handle_control(r).await;       // todo
+                                },
+                                Call(msg, dest) => {
+                                    let (control, result) = self.instance.handle_calls(msg).await;
+                                    match dest.send(result) {
+                                        Ok(()) => {},
+                                        Err(_) => {
+                                            warn!("unable to send reply of call message to caller.");
+                                        }
+                                    }
+                                    self.handle_control(control).await; // todo
+                                },
+                            }
                         }
                     }
-                    break;
-                },
-                Send(msg) => {
-                    let r = self.instance.handle_sends(msg).await;
-                    self.handle_control(r).await;       // todo
-                },
-                Call(msg, dest) => {
-                    let (control, result) = self.instance.handle_calls(msg).await;
-                    match dest.send(result) {
-                        Ok(()) => {},
-                        Err(_) => {
-                            warn!("unable to send reply of call message to caller.");
-                        }
-                    }
-                    self.handle_control(control).await; // todo
-                },
+                }
             }
         }
-        self.tasks.close();
-        if ! self.tasks.is_empty() {
-            self.tasks.wait().await;
+        if ! self.actor_ref.terminate_token.is_cancelled() {
+            // if not terminated, then clean up
+            self.tasks.close();
+            if ! self.tasks.is_empty() {
+                self.tasks.wait().await;
+            }
         }
     }
 
